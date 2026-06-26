@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
 import {
   LayoutDashboard, Clock, Users, BarChart3,
-  LogOut, Building2, ChevronRight, Settings, ShieldCheck, Menu, X,
+  LogOut, Building2, ChevronRight, ChevronDown, Settings, ShieldCheck, Menu, X, Palette, Mail,
 } from 'lucide-react';
 
 const navItems = [
@@ -13,7 +13,11 @@ const navItems = [
   { to: '/reports', label: 'Reports', icon: BarChart3, roles: ['admin'] },
   { to: '/users', label: 'Users', icon: Users, roles: ['admin'] },
   { to: '/audit', label: 'Audit Log', icon: ShieldCheck, roles: ['admin'] },
-  { to: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] },
+];
+
+const settingsChildren = [
+  { to: '/settings/branding', label: 'Branding', icon: Palette },
+  { to: '/settings/smtp',     label: 'Email / SMTP', icon: Mail },
 ];
 
 const roleColors: Record<string, string> = {
@@ -25,7 +29,13 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { branding } = useBranding();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(location.pathname.startsWith('/settings'));
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/settings')) setSettingsOpen(true);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -87,7 +97,7 @@ export default function Layout() {
                 end={exact}
                 onClick={closeSidebar}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group ${
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -103,6 +113,49 @@ export default function Layout() {
                 )}
               </NavLink>
             ))}
+
+          {/* Settings expandable group (admin only) */}
+          {user?.role === 'admin' && (
+            <div>
+              <button
+                onClick={() => setSettingsOpen(o => !o)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  location.pathname.startsWith('/settings')
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                <Settings size={18} className="shrink-0" />
+                <span className="flex-1 text-left">Settings</span>
+                <ChevronDown
+                  size={14}
+                  className={`opacity-50 transition-transform duration-200 ${settingsOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {settingsOpen && (
+                <div className="mt-1 ml-4 pl-3 border-l-2 border-gray-100 space-y-0.5">
+                  {settingsChildren.map(({ to, label, icon: Icon }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      onClick={closeSidebar}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                          isActive
+                            ? 'text-blue-700 font-medium bg-blue-50'
+                            : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                        }`
+                      }
+                    >
+                      <Icon size={15} className="shrink-0" />
+                      {label}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </nav>
 
         {/* User info */}

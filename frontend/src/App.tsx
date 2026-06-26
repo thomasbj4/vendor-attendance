@@ -10,7 +10,8 @@ import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Users from './pages/Users';
 import Reports from './pages/Reports';
-import Settings from './pages/Settings';
+import SettingsBranding from './pages/SettingsBranding';
+import SettingsSmtp from './pages/SettingsSmtp';
 import AuditLog from './pages/AuditLog';
 
 function PrivateRoute({ children, roles }: { children: JSX.Element; roles?: string[] }) {
@@ -48,7 +49,9 @@ export default function App() {
         <Route path="attendance" element={<Attendance />} />
         <Route path="users" element={<PrivateRoute roles={['admin']}><Users /></PrivateRoute>} />
         <Route path="reports" element={<PrivateRoute roles={['admin']}><Reports /></PrivateRoute>} />
-        <Route path="settings" element={<PrivateRoute roles={['admin']}><Settings /></PrivateRoute>} />
+        <Route path="settings" element={<PrivateRoute roles={['admin']}><Navigate to="/settings/branding" replace /></PrivateRoute>} />
+        <Route path="settings/branding" element={<PrivateRoute roles={['admin']}><SettingsBranding /></PrivateRoute>} />
+        <Route path="settings/smtp" element={<PrivateRoute roles={['admin']}><SettingsSmtp /></PrivateRoute>} />
         <Route path="audit" element={<PrivateRoute roles={['admin']}><AuditLog /></PrivateRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
