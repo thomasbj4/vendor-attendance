@@ -152,11 +152,11 @@ export default function Settings() {
             <div>
               <label className="label mb-2 block">Sidebar Logo</label>
               <div
-                className="relative flex items-center justify-center h-24 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors"
+                className="relative flex items-center justify-center h-40 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors"
                 onClick={() => logoInputRef.current?.click()}
               >
                 {logoPreview ? (
-                  <img src={logoPreview} alt="Logo preview" className="max-h-20 max-w-full object-contain p-2" />
+                  <img src={logoPreview} alt="Logo preview" className="max-h-36 max-w-full object-contain p-3" />
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-gray-400">
                     <Image size={24} />
@@ -182,7 +182,7 @@ export default function Settings() {
                   </button>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mt-1">PNG, SVG, WebP · max 1 MB</p>
+              <p className="text-xs text-gray-400 mt-1">PNG, SVG, WebP · max 5 MB</p>
               <input
                 ref={logoInputRef}
                 type="file"
@@ -196,11 +196,11 @@ export default function Settings() {
             <div>
               <label className="label mb-2 block">Favicon (browser tab icon)</label>
               <div
-                className="relative flex items-center justify-center h-24 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors"
+                className="relative flex items-center justify-center h-40 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors"
                 onClick={() => faviconInputRef.current?.click()}
               >
                 {faviconPreview ? (
-                  <img src={faviconPreview} alt="Favicon preview" className="w-12 h-12 object-contain" />
+                  <img src={faviconPreview} alt="Favicon preview" className="w-24 h-24 object-contain" />
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-gray-400">
                     <Image size={24} />
@@ -226,7 +226,7 @@ export default function Settings() {
                   </button>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mt-1">PNG, WebP · max 256 KB · ideally square</p>
+              <p className="text-xs text-gray-400 mt-1">PNG, WebP · max 1 MB · ideally square</p>
               <input
                 ref={faviconInputRef}
                 type="file"

@@ -71,8 +71,8 @@ router.post('/smtp/test', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 const BRANDING_IMAGE_RE = /^data:image\/(png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
-const FAVICON_MAX_BYTES = 256 * 1024;
-const LOGO_MAX_BYTES    = 1024 * 1024;
+const FAVICON_MAX_BYTES = 1024 * 1024;      // 1 MB
+const LOGO_MAX_BYTES    = 5 * 1024 * 1024;  // 5 MB
 
 router.put('/branding', async (req: AuthenticatedRequest, res: Response) => {
   const { favicon, logo } = req.body;

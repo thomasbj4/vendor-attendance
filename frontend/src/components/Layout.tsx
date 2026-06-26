@@ -55,7 +55,7 @@ export default function Layout() {
         <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
             {branding.logo ? (
-              <img src={branding.logo} alt="Logo" className="h-9 max-w-[148px] object-contain" />
+              <img src={branding.logo} alt="Logo" className="h-12 max-w-[180px] object-contain" />
             ) : (
               <>
                 <div className="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center shrink-0">
@@ -142,7 +142,7 @@ export default function Layout() {
           </button>
           <div className="flex items-center gap-2 min-w-0">
             {branding.logo ? (
-              <img src={branding.logo} alt="Logo" className="h-7 max-w-[120px] object-contain" />
+              <img src={branding.logo} alt="Logo" className="h-9 max-w-[140px] object-contain" />
             ) : (
               <>
                 <div className="w-7 h-7 bg-blue-500 rounded-md flex items-center justify-center shrink-0">
