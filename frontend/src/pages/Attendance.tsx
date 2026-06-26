@@ -151,8 +151,8 @@ export default function Attendance() {
     const res = await api.get('/attendance', {
       params: {
         user_id: selectedUser.id,
-        start_date: format(managerWeek, 'yyyy-MM-dd'),
-        end_date: format(wSun(managerWeek), 'yyyy-MM-dd'),
+        start_date: format(addDays(managerWeek, -2), 'yyyy-MM-dd'), // Sat
+        end_date:   format(addDays(managerWeek,  4), 'yyyy-MM-dd'), // Fri
       }
     }).catch(() => null);
     setWeekRecords(res?.data.records ?? []);
@@ -345,7 +345,7 @@ export default function Attendance() {
       let count = 0;
       for (let i = 0; i < 4; i++) {
         const wm = format(addDays(wMon(today), -7 * i), 'yyyy-MM-dd');
-        const wf = format(addDays(wMon(today), -7 * i + 4), 'yyyy-MM-dd');
+        const wf = format(addDays(wMon(today), -7 * i + 6), 'yyyy-MM-dd');
         const found = allReports.find(t => t.period_start === wm && t.period_end === wf);
         if (!found || (found.status !== 'submitted' && found.status !== 'signed')) count++;
       }
@@ -737,9 +737,18 @@ export default function Attendance() {
   // ════════════════════════════════
   // MANAGER / ADMIN VIEW
   // ════════════════════════════════
-  const mwFri = addDays(managerWeek, 4);
+  const mwSat = addDays(managerWeek, -2); // period start: previous Saturday
+  const mwFri = addDays(managerWeek,  4); // period end:   this Friday
   const weekDays = eachDayOfInterval({ start: managerWeek, end: mwFri });
-  const isCurrentWeek = isSameDay(managerWeek, wMon(today));
+  const isCurrentPeriod = isSameDay(managerWeek, wMon(today));
+  const mgrTodayStr = format(today, 'yyyy-MM-dd');
+  const handleManagerPeriodChange = (value: string) => {
+    if (!value) return;
+    const d = parseISO(value);
+    const day = d.getDay();
+    const sat = addDays(d, day === 6 ? 0 : -(day + 1));
+    setManagerWeek(addDays(sat, 2));
+  };
   const selectedReport = selectedUser ? submittedReports.find(t => t.user_id === selectedUser.id) : null;
 
   return (
@@ -749,17 +758,38 @@ export default function Attendance() {
           <h1 className="text-2xl font-bold text-gray-900">Attendance Reports</h1>
           <p className="text-sm text-gray-500 mt-0.5">View submitted attendance by week</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setManagerWeek(d => addDays(d, -7))} className="btn-secondary p-2">
-            <ChevronLeft size={16} />
-          </button>
-          <div className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 text-center min-w-[220px]">
-            {format(managerWeek, 'MMM d')} – {format(mwFri, 'MMM d, yyyy')}
-            {isCurrentWeek && <span className="ml-2 text-xs text-indigo-500">This week</span>}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <button onClick={() => setManagerWeek(d => addDays(d, -7))}
+              className="px-2.5 py-2 hover:bg-gray-50 text-gray-500 hover:text-gray-700 border-r border-gray-100 transition-colors">
+              <ChevronLeft size={16} />
+            </button>
+            <div className="flex items-center gap-1 px-2.5 py-1.5">
+              <input
+                type="date"
+                value={format(mwSat, 'yyyy-MM-dd')}
+                max={mgrTodayStr}
+                onChange={e => handleManagerPeriodChange(e.target.value)}
+                className="text-sm text-gray-700 outline-none bg-transparent w-[116px] cursor-pointer"
+              />
+              <span className="text-gray-300 text-xs select-none">–</span>
+              <input
+                type="date"
+                value={format(mwFri, 'yyyy-MM-dd')}
+                readOnly
+                className="text-sm text-gray-500 outline-none bg-transparent w-[116px] cursor-default"
+              />
+            </div>
+            <button onClick={() => setManagerWeek(d => addDays(d, 7))} disabled={isCurrentPeriod}
+              className="px-2.5 py-2 hover:bg-gray-50 text-gray-500 hover:text-gray-700 border-l border-gray-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronRight size={16} />
+            </button>
           </div>
-          <button onClick={() => setManagerWeek(d => addDays(d, 7))} disabled={isCurrentWeek} className="btn-secondary p-2 disabled:opacity-40">
-            <ChevronRight size={16} />
-          </button>
+          {!isCurrentPeriod && (
+            <button onClick={() => setManagerWeek(wMon(today))} className="btn-secondary text-xs py-1.5 px-3">
+              This Week
+            </button>
+          )}
         </div>
       </div>
 
@@ -826,7 +856,7 @@ export default function Attendance() {
                       ? <span className="badge-green flex items-center gap-1"><PenLine size={10} /> Signed & Submitted</span>
                       : <span className="badge-yellow flex items-center gap-1"><Clock size={10} /> Not yet submitted</span>
                     }
-                    <span className="text-xs text-gray-400">{format(managerWeek, 'MMM d')} – {format(mwFri, 'MMM d, yyyy')}</span>
+                    <span className="text-xs text-gray-400">{format(mwSat, 'MMM d')} – {format(mwFri, 'MMM d, yyyy')}</span>
                   </div>
                 </div>
                 {selectedReport?.signature_data && (
@@ -843,7 +873,7 @@ export default function Attendance() {
             {/* Week records table — Mon–Sun */}
             <div className="card overflow-hidden">
               <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-gray-700">Attendance — {format(managerWeek, 'MMM d')} to {format(wSun(managerWeek), 'MMM d')}</h3>
+                <h3 className="text-sm font-medium text-gray-700">Attendance — {format(mwSat, 'MMM d')} to {format(mwFri, 'MMM d')}</h3>
                 <span className="text-xs text-gray-400 flex items-center gap-1">
                   <Edit2 size={11} /> Click pencil to edit any record
                 </span>
@@ -858,47 +888,13 @@ export default function Attendance() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {/* Weekdays Mon–Fri */}
-                    {weekDays.map(day => {
-                      const rec = weekRecords.find(r => isSameDay(parseISO(r.date + 'T00:00:00'), day));
-                      const isToday = isSameDay(day, today);
-                      return (
-                        <tr key={day.toISOString()} className={`hover:bg-gray-50 ${isToday ? 'bg-indigo-50' : ''}`}>
-                          <td className="px-4 py-3 font-medium">
-                            <span className={isToday ? 'text-indigo-600' : 'text-gray-900'}>{format(day, 'EEE, MMM d')}</span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">{rec ? (rec.clock_in || '08:00') : <span className="text-gray-300">—</span>}</td>
-                          <td className="px-4 py-3 text-gray-600">{rec ? (rec.clock_out || '16:00') : <span className="text-gray-300">—</span>}</td>
-                          <td className="px-4 py-3 text-gray-500">{rec?.break_minutes ? `${rec.break_minutes}m` : '—'}</td>
-                          <td className="px-4 py-3 font-medium">{rec ? `${(rec.regular_hours || 8).toFixed(1)}h` : <span className="text-gray-300">—</span>}</td>
-                          <td className="px-4 py-3">
-                            {rec?.extra_hours ? (
-                              <span className="text-amber-600 font-medium flex items-center gap-1">
-                                <Zap size={11} />+{rec.extra_hours}h
-                                {rec.extra_start && rec.extra_end && <span className="text-amber-400 text-[11px]"> ({rec.extra_start}–{rec.extra_end})</span>}
-                              </span>
-                            ) : '—'}
-                          </td>
-                          <td className="px-4 py-3">
-                            {rec ? <span className={STATUS_BADGE[rec.status] || 'badge-gray'}>{rec.status}</span> : <span className="text-gray-300">—</span>}
-                          </td>
-                          <td className="px-4 py-3 text-gray-400 text-xs max-w-[120px] truncate">{rec?.notes || ''}</td>
-                          <td className="px-4 py-3">
-                            <button onClick={() => openModal(day)} className="text-indigo-500 hover:text-indigo-700" title="Edit record">
-                              <Edit2 size={14} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {/* Weekend separator */}
+                    {/* Weekend first — Sat + Sun (start of period) */}
                     <tr>
-                      <td colSpan={9} className="px-4 py-1.5 bg-violet-50 border-t border-violet-100">
+                      <td colSpan={9} className="px-4 py-1.5 bg-violet-50 border-b border-violet-100">
                         <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-widest">Weekend — Overtime</span>
                       </td>
                     </tr>
-                    {/* Sat + Sun */}
-                    {[addDays(managerWeek, 5), addDays(managerWeek, 6)].map(day => {
+                    {[addDays(managerWeek, -2), addDays(managerWeek, -1)].map(day => {
                       const rec = weekRecords.find(r => isSameDay(parseISO(r.date + 'T00:00:00'), day));
                       const isToday = isSameDay(day, today);
                       return (
@@ -926,6 +922,44 @@ export default function Attendance() {
                           <td className="px-4 py-3 text-gray-400 text-xs max-w-[120px] truncate">{rec?.notes || ''}</td>
                           <td className="px-4 py-3">
                             <button onClick={() => openModal(day)} className="text-violet-500 hover:text-violet-700" title="Log/edit weekend">
+                              <Edit2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {/* Weekdays Mon–Fri */}
+                    <tr>
+                      <td colSpan={9} className="px-4 py-1.5 bg-gray-50 border-t border-gray-100">
+                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Weekdays — Mon–Fri</span>
+                      </td>
+                    </tr>
+                    {weekDays.map(day => {
+                      const rec = weekRecords.find(r => isSameDay(parseISO(r.date + 'T00:00:00'), day));
+                      const isToday = isSameDay(day, today);
+                      return (
+                        <tr key={day.toISOString()} className={`hover:bg-gray-50 ${isToday ? 'bg-indigo-50' : ''}`}>
+                          <td className="px-4 py-3 font-medium">
+                            <span className={isToday ? 'text-indigo-600' : 'text-gray-900'}>{format(day, 'EEE, MMM d')}</span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{rec ? (rec.clock_in || '08:00') : <span className="text-gray-300">—</span>}</td>
+                          <td className="px-4 py-3 text-gray-600">{rec ? (rec.clock_out || '16:00') : <span className="text-gray-300">—</span>}</td>
+                          <td className="px-4 py-3 text-gray-500">{rec?.break_minutes ? `${rec.break_minutes}m` : '—'}</td>
+                          <td className="px-4 py-3 font-medium">{rec ? `${(rec.regular_hours || 8).toFixed(1)}h` : <span className="text-gray-300">—</span>}</td>
+                          <td className="px-4 py-3">
+                            {rec?.extra_hours ? (
+                              <span className="text-amber-600 font-medium flex items-center gap-1">
+                                <Zap size={11} />+{rec.extra_hours}h
+                                {rec.extra_start && rec.extra_end && <span className="text-amber-400 text-[11px]"> ({rec.extra_start}–{rec.extra_end})</span>}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {rec ? <span className={STATUS_BADGE[rec.status] || 'badge-gray'}>{rec.status}</span> : <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-xs max-w-[120px] truncate">{rec?.notes || ''}</td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => openModal(day)} className="text-indigo-500 hover:text-indigo-700" title="Edit record">
                               <Edit2 size={14} />
                             </button>
                           </td>

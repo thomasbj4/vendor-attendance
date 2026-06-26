@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
 import { AttendanceRecord, User, Timesheet } from '../types';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfWeek, addDays } from 'date-fns';
 import { FileSpreadsheet, Filter, Zap, FileCheck, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const PAGE_SIZE = 25;
@@ -29,13 +29,11 @@ export default function Reports() {
   const [page,       setPage]       = useState(1);
   const getWeekRange = () => {
     const today = new Date();
-    const day = today.getDay(); // 0 Sun … 6 Sat
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - ((day + 6) % 7));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const fmt = (d: Date) => d.toISOString().split('T')[0];
-    return { start: fmt(monday), end: fmt(sunday) };
+    const monday = startOfWeek(today, { weekStartsOn: 1 });
+    return {
+      start: format(addDays(monday, -2), 'yyyy-MM-dd'), // Saturday
+      end:   format(addDays(monday,  4), 'yyyy-MM-dd'), // Friday
+    };
   };
 
   const [filters, setFilters] = useState(() => ({ user_id: '', status: '', ...getWeekRange() }));

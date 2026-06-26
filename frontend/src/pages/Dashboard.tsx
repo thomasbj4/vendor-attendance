@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { AttendanceRecord, User, Timesheet } from '../types';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, addDays, isToday as dateFnsIsToday } from 'date-fns';
+import { format, startOfWeek, parseISO, addDays, isToday as dateFnsIsToday } from 'date-fns';
 import { CheckCircle2, XCircle, Clock, CalendarDays, FileText, Zap, ChevronLeft, ChevronRight, PenLine, Sun } from 'lucide-react';
 
 interface UserWeekStatus {
@@ -16,6 +16,10 @@ interface UserWeekStatus {
 }
 
 const today = new Date();
+// Default period: last Saturday → this Friday
+const currentMon          = startOfWeek(today, { weekStartsOn: 1 });
+const currentPeriodStart  = addDays(currentMon, -2); // Sat
+const currentPeriodEnd    = addDays(currentMon,  4); // Fri
 
 function getWorkDays(weekStart: Date) {
   return [0, 1, 2, 3, 4].map(i => addDays(weekStart, i)); // Mon–Fri
@@ -25,30 +29,57 @@ export default function Dashboard() {
   const { user } = useAuth();
   const isManager = user?.role === 'admin';
 
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [rangeStart, setRangeStart] = useState(format(currentPeriodStart, 'yyyy-MM-dd'));
+  const [rangeEnd,   setRangeEnd]   = useState(format(currentPeriodEnd,   'yyyy-MM-dd'));
   const [userStatuses, setUserStatuses] = useState<UserWeekStatus[]>([]);
   const [myRecords, setMyRecords] = useState<AttendanceRecord[]>([]);
   const [weekTimesheets, setWeekTimesheets] = useState<Timesheet[]>([]);
   const [myTimesheet, setMyTimesheet] = useState<Timesheet | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const baseDate   = weekOffset === 0 ? today : addWeeks(today, weekOffset);
-  const weekStart  = startOfWeek(baseDate, { weekStartsOn: 1 });
-  const weekEnd    = endOfWeek(baseDate, { weekStartsOn: 1 });
-  const workDays   = getWorkDays(weekStart);
+  // rangeStart is always Saturday; Monday is 2 days later
+  const weekStart    = addDays(parseISO(rangeStart), 2);
+  const workDays     = getWorkDays(weekStart);
   const pastWorkDays = workDays.filter(d => d <= today);
 
-  const weekStartStr  = format(weekStart, 'yyyy-MM-dd');
-  const weekEndStr    = format(weekEnd,   'yyyy-MM-dd');
-  const weekFridayStr = format(addDays(weekStart, 6), 'yyyy-MM-dd');
+  const weekStartStr  = format(weekStart, 'yyyy-MM-dd');  // Monday
+  const weekEndStr    = rangeEnd;                          // Friday (for API fetch)
+  const weekSundayStr = format(addDays(weekStart, 6), 'yyyy-MM-dd'); // Sunday — timesheet period_end
 
-  const isCurrentWeek = weekOffset === 0;
-  const weekLabel = isCurrentWeek ? 'This Week' : weekOffset === -1 ? 'Last Week' : `Week of ${format(weekStart, 'MMM d')}`;
+  const isCurrentPeriod = rangeStart === format(currentPeriodStart, 'yyyy-MM-dd');
+  const weekLabel = isCurrentPeriod
+    ? 'This Week'
+    : `${format(parseISO(rangeStart), 'MMM d')} – ${format(parseISO(rangeEnd), 'MMM d')}`;
 
-  // Always show the weekend BEFORE the viewed week (prev Sat/Sun)
-  const weekendDays = [addDays(weekStart, -2), addDays(weekStart, -1)];
+  // Sat/Sun at the START of the range
+  const weekendDays     = [parseISO(rangeStart), addDays(parseISO(rangeStart), 1)];
   const weekendDateStrs = weekendDays.map(d => format(d, 'yyyy-MM-dd'));
-  const fetchStartStr = format(addDays(weekStart, -2), 'yyyy-MM-dd');
+  const fetchStartStr   = rangeStart; // starts from Saturday
+
+  const todayStr = format(today, 'yyyy-MM-dd');
+
+  const goToPrevPeriod = () => {
+    setRangeStart(format(addDays(parseISO(rangeStart), -7), 'yyyy-MM-dd'));
+    setRangeEnd(format(addDays(parseISO(rangeEnd),   -7), 'yyyy-MM-dd'));
+  };
+  const goToNextPeriod = () => {
+    if (isCurrentPeriod) return;
+    setRangeStart(format(addDays(parseISO(rangeStart), 7), 'yyyy-MM-dd'));
+    setRangeEnd(format(addDays(parseISO(rangeEnd),   7), 'yyyy-MM-dd'));
+  };
+  const goToCurrentPeriod = () => {
+    setRangeStart(format(currentPeriodStart, 'yyyy-MM-dd'));
+    setRangeEnd(format(currentPeriodEnd,   'yyyy-MM-dd'));
+  };
+  const handleStartChange = (value: string) => {
+    if (!value) return;
+    const d   = parseISO(value);
+    const day = d.getDay(); // 0=Sun … 6=Sat
+    const daysFromSat = day === 6 ? 0 : day + 1;
+    const ps  = addDays(d, -daysFromSat); // snap to Saturday
+    setRangeStart(format(ps,              'yyyy-MM-dd'));
+    setRangeEnd(format(addDays(ps, 6),  'yyyy-MM-dd')); // +6 = Friday
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -63,7 +94,7 @@ export default function Dashboard() {
           const users: User[]            = usersRes.data.users.filter((u: User) => u.is_active && u.role !== 'admin');
           const allRecords: AttendanceRecord[] = recRes.data.records;
           const ts: Timesheet[]          = tsRes.data.timesheets.filter((t: Timesheet) =>
-            t.period_start === weekStartStr && t.period_end === weekFridayStr &&
+            t.period_start === weekStartStr && t.period_end === weekSundayStr &&
             (t.status === 'submitted' || t.status === 'signed')
           );
           setWeekTimesheets(ts);
@@ -73,7 +104,7 @@ export default function Dashboard() {
             const weekdayRecords = records.filter(r => !weekendDateStrs.includes(r.date));
             const weekendRecords = records.filter(r =>  weekendDateStrs.includes(r.date));
             const submittedDays  = weekdayRecords.map(r => r.date);
-            const relevantDays   = isCurrentWeek ? pastWorkDays : workDays;
+            const relevantDays   = isCurrentPeriod ? pastWorkDays : workDays;
             const missedDays     = relevantDays
               .filter(d => !submittedDays.includes(format(d, 'yyyy-MM-dd')))
               .map(d => format(d, 'yyyy-MM-dd'));
@@ -89,7 +120,7 @@ export default function Dashboard() {
           setMyRecords(recRes.data.records);
           const ts: Timesheet[] = tsRes.data.timesheets;
           const mine = ts.find((t: Timesheet) =>
-            t.period_start === weekStartStr && t.period_end === weekFridayStr
+            t.period_start === weekStartStr && t.period_end === weekSundayStr
           ) ?? null;
           setMyTimesheet(mine);
         }
@@ -108,7 +139,7 @@ export default function Dashboard() {
   const myWeekdayRecords = myRecords.filter(r => !weekendDateStrs.includes(r.date));
   const myWeekendRecords = myRecords.filter(r =>  weekendDateStrs.includes(r.date));
   const mySubmittedDays  = myWeekdayRecords.map(r => r.date);
-  const relevantDays     = isCurrentWeek ? pastWorkDays : workDays;
+  const relevantDays     = isCurrentPeriod ? pastWorkDays : workDays;
   const myMissedDays     = relevantDays.filter(d => !mySubmittedDays.includes(format(d, 'yyyy-MM-dd')));
   const myRegularHours   = myWeekdayRecords.reduce((s, r) => s + (r.regular_hours || 0), 0);
   const myWeekdayOT      = myWeekdayRecords.reduce((s, r) => s + (r.extra_hours || 0), 0);
@@ -155,20 +186,44 @@ export default function Dashboard() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{greeting}, {user?.name?.split(' ')[0]}</h1>
           <p className="text-gray-400 text-sm mt-0.5 flex items-center gap-1">
             <CalendarDays size={13} />
-            {format(weekStart, 'MMM d')} – {format(weekEnd, 'MMM d, yyyy')}
+            {format(parseISO(rangeStart), 'MMM d')} – {format(parseISO(rangeEnd), 'MMM d, yyyy')}
           </p>
         </div>
 
-        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-          <button onClick={() => setWeekOffset(w => w - 1)}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
-            <ChevronLeft size={16} />
-          </button>
-          <span className="px-3 text-sm font-medium text-gray-700 min-w-[90px] text-center">{weekLabel}</span>
-          <button onClick={() => setWeekOffset(w => Math.min(0, w + 1))} disabled={isCurrentWeek}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-            <ChevronRight size={16} />
-          </button>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <button onClick={goToPrevPeriod}
+              className="px-2.5 py-2 hover:bg-gray-50 text-gray-500 hover:text-gray-700 border-r border-gray-100 transition-colors">
+              <ChevronLeft size={16} />
+            </button>
+            <div className="flex items-center gap-1 px-2.5 py-1.5">
+              <input
+                type="date"
+                value={rangeStart}
+                max={todayStr}
+                onChange={e => handleStartChange(e.target.value)}
+                className="text-sm text-gray-700 outline-none bg-transparent w-[116px] cursor-pointer"
+              />
+              <span className="text-gray-300 text-xs select-none">–</span>
+              <input
+                type="date"
+                value={rangeEnd}
+                min={rangeStart}
+                max={todayStr}
+                onChange={e => setRangeEnd(e.target.value)}
+                className="text-sm text-gray-700 outline-none bg-transparent w-[116px] cursor-pointer"
+              />
+            </div>
+            <button onClick={goToNextPeriod} disabled={isCurrentPeriod}
+              className="px-2.5 py-2 hover:bg-gray-50 text-gray-500 hover:text-gray-700 border-l border-gray-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          {!isCurrentPeriod && (
+            <button onClick={goToCurrentPeriod} className="btn-secondary text-xs py-1.5 px-3">
+              This Week
+            </button>
+          )}
         </div>
       </div>
 
@@ -248,7 +303,7 @@ export default function Dashboard() {
                 <div className="px-5 py-8 text-center text-gray-400 text-sm">No users found</div>
               )}
               {userStatuses.map(({ user: u, records, weekdayRecords, weekendRecords, submittedDays, missedDays, weekendHours }) => {
-                const relevantDaysForUser = isCurrentWeek ? pastWorkDays : workDays;
+                const relevantDaysForUser = isCurrentPeriod ? pastWorkDays : workDays;
                 const allDone  = relevantDaysForUser.length > 0 && relevantDaysForUser.every(d => submittedDays.includes(format(d, 'yyyy-MM-dd')));
                 const noneDone = submittedDays.length === 0;
                 const ts       = weekTimesheets.find(t => t.user_id === u.id);
@@ -481,7 +536,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {myMissedDays.length > 0 && isCurrentWeek && (
+          {myMissedDays.length > 0 && isCurrentPeriod && (
             <div className="card p-4 bg-amber-50 border-amber-200 flex items-center justify-between">
               <p className="text-sm text-amber-800">
                 <span className="font-semibold">{myMissedDays.length} day{myMissedDays.length > 1 ? 's' : ''}</span> missing this week.

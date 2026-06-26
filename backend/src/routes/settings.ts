@@ -55,7 +55,11 @@ router.put('/smtp', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 router.post('/smtp/test', async (req: AuthenticatedRequest, res: Response) => {
-  const recipient = req.user!.email;
+  const to = (req.body.to || '').trim();
+  const recipient = to || req.user!.email;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+    res.status(400).json({ error: 'Invalid recipient email address.' }); return;
+  }
   try {
     await sendEmail(
       recipient,
