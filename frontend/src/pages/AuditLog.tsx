@@ -27,6 +27,7 @@ const ACTION_STYLES: Record<string, string> = {
   'user.update':           'bg-amber-100 text-amber-700',
   'user.deactivate':       'bg-red-100 text-red-600',
   'settings.smtp.update':  'bg-gray-100 text-gray-600',
+  'user.password_change':  'bg-amber-100 text-amber-700',
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -42,6 +43,7 @@ const ACTION_LABELS: Record<string, string> = {
   'user.update':           'User updated',
   'user.deactivate':       'User deactivated',
   'settings.smtp.update':  'SMTP updated',
+  'user.password_change':  'Password changed',
 };
 
 const ALL_ACTIONS = Object.keys(ACTION_LABELS);

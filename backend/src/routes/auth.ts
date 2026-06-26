@@ -156,6 +156,29 @@ router.post('/verify-otp', otpLimiter, async (req: Request, res: Response) => {
   }
 });
 
+router.put('/password', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { new_password, confirm_password } = req.body;
+
+  if (!new_password || typeof new_password !== 'string' || new_password.length < 8) {
+    res.status(400).json({ error: 'Password must be at least 8 characters.' }); return;
+  }
+  if (new_password !== confirm_password) {
+    res.status(400).json({ error: 'Passwords do not match.' }); return;
+  }
+
+  const pool = getPool();
+  const rounds = parseInt(process.env.BCRYPT_ROUNDS || '10', 10);
+  try {
+    const hashed = await bcrypt.hash(new_password, rounds);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, req.user!.userId]);
+    await logAudit(pool, req.user!.userId, req.user!.email, 'user.password_change', 'user', req.user!.userId, {});
+    res.json({ success: true });
+  } catch (err) {
+    console.error('password change error', err);
+    res.status(500).json({ error: 'Failed to update password.' });
+  }
+});
+
 router.post('/logout', (_req: Request, res: Response) => {
   res.clearCookie('token', { path: '/' });
   res.json({ message: 'Logged out.' });

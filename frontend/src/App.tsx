@@ -12,6 +12,7 @@ import Users from './pages/Users';
 import Reports from './pages/Reports';
 import SettingsBranding from './pages/SettingsBranding';
 import SettingsSmtp from './pages/SettingsSmtp';
+import Profile from './pages/Profile';
 import AuditLog from './pages/AuditLog';
 
 function PrivateRoute({ children, roles }: { children: JSX.Element; roles?: string[] }) {
@@ -47,6 +48,7 @@ export default function App() {
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="attendance" element={<Attendance />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="users" element={<PrivateRoute roles={['admin']}><Users /></PrivateRoute>} />
         <Route path="reports" element={<PrivateRoute roles={['admin']}><Reports /></PrivateRoute>} />
         <Route path="settings" element={<PrivateRoute roles={['admin']}><Navigate to="/settings/branding" replace /></PrivateRoute>} />

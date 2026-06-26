@@ -4,16 +4,17 @@ import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
 import {
   LayoutDashboard, Clock, Users, BarChart3,
-  LogOut, Building2, ChevronRight, Settings, ShieldCheck, Menu, X, Palette, Mail,
+  LogOut, Building2, ChevronRight, Settings, ShieldCheck, Menu, X, Palette, Mail, UserCircle2,
 } from 'lucide-react';
 
 const mainNav = [
-  { to: '/',          label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { to: '/attendance',label: 'Attendance',icon: Clock },
-  { to: '/reports',   label: 'Reports',   icon: BarChart3,  roles: ['admin'] },
-  { to: '/users',     label: 'Users',     icon: Users,      roles: ['admin'] },
-  { to: '/audit',     label: 'Audit Log', icon: ShieldCheck,roles: ['admin'] },
-  { to: '/settings',  label: 'Settings',  icon: Settings,   roles: ['admin'] },
+  { to: '/',          label: 'Dashboard',  icon: LayoutDashboard, exact: true },
+  { to: '/attendance',label: 'Attendance', icon: Clock },
+  { to: '/profile',   label: 'My Account', icon: UserCircle2 },
+  { to: '/reports',   label: 'Reports',    icon: BarChart3,   roles: ['admin'] },
+  { to: '/users',     label: 'Users',      icon: Users,       roles: ['admin'] },
+  { to: '/audit',     label: 'Audit Log',  icon: ShieldCheck, roles: ['admin'] },
+  { to: '/settings',  label: 'Settings',   icon: Settings,    roles: ['admin'] },
 ];
 
 const settingsNav = [
