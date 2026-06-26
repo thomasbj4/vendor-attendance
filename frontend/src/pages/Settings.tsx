@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
 import api from '../api/client';
-import { Save, Send, Eye, EyeOff, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Save, Send, Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, Upload, X, Image } from 'lucide-react';
 
 interface SmtpForm {
   host: string;
@@ -26,6 +27,9 @@ const defaultForm: SmtpForm = {
 
 export default function Settings() {
   const { user } = useAuth();
+  const { branding, refresh: refreshBranding } = useBranding();
+
+  // SMTP state
   const [form, setForm]           = useState<SmtpForm>(defaultForm);
   const [showPass, setShowPass]   = useState(false);
   const [saving, setSaving]       = useState(false);
@@ -34,12 +38,66 @@ export default function Settings() {
   const [saveMsg, setSaveMsg]     = useState<{ text: string; ok: boolean } | null>(null);
   const [testMsg, setTestMsg]     = useState<{ text: string; ok: boolean } | null>(null);
 
+  // Branding state
+  const [logoPreview, setLogoPreview]       = useState('');
+  const [faviconPreview, setFaviconPreview] = useState('');
+  const [brandingSaving, setBrandingSaving] = useState(false);
+  const [brandingMsg, setBrandingMsg]       = useState<{ text: string; ok: boolean } | null>(null);
+  const logoInputRef    = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     api.get('/settings/smtp').then(({ data }) => {
       if (data.settings) setForm(data.settings);
     }).catch(() => {});
     setTestEmail(user?.email || '');
   }, [user]);
+
+  useEffect(() => {
+    setLogoPreview(branding.logo);
+    setFaviconPreview(branding.favicon);
+  }, [branding]);
+
+  const readFile = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const data = await readFile(file);
+    setLogoPreview(data);
+    e.target.value = '';
+  };
+
+  const handleFaviconFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const data = await readFile(file);
+    setFaviconPreview(data);
+    e.target.value = '';
+  };
+
+  const saveBranding = async () => {
+    setBrandingSaving(true); setBrandingMsg(null);
+    try {
+      await api.put('/settings/branding', {
+        logo: logoPreview || '',
+        favicon: faviconPreview || '',
+      });
+      await refreshBranding();
+      setBrandingMsg({ text: 'Branding saved.', ok: true });
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Save failed'
+        : 'Save failed';
+      setBrandingMsg({ text: msg, ok: false });
+    } finally { setBrandingSaving(false); }
+  };
 
   const set = (k: keyof SmtpForm, v: string | number) =>
     setForm(f => ({ ...f, [k]: v }));
@@ -78,8 +136,125 @@ export default function Settings() {
   const isRelay = form.connection_type === 'relay';
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl">
+    <div className="p-4 sm:p-6 space-y-6 max-w-2xl">
       <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+
+      {/* Branding card */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <p className="font-semibold text-gray-900">Branding</p>
+          <p className="text-xs text-gray-500 mt-0.5">Custom logo and favicon shown across the app</p>
+        </div>
+        <div className="p-5 space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+            {/* Logo */}
+            <div>
+              <label className="label mb-2 block">Sidebar Logo</label>
+              <div
+                className="relative flex items-center justify-center h-24 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Logo preview" className="max-h-20 max-w-full object-contain p-2" />
+                ) : (
+                  <div className="flex flex-col items-center gap-1 text-gray-400">
+                    <Image size={24} />
+                    <span className="text-xs">Click to upload</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="btn-secondary text-xs py-1.5"
+                >
+                  <Upload size={12} /> Upload
+                </button>
+                {logoPreview && (
+                  <button
+                    type="button"
+                    onClick={() => setLogoPreview('')}
+                    className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+                  >
+                    <X size={12} /> Remove
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">PNG, SVG, WebP · max 1 MB</p>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                className="hidden"
+                onChange={handleLogoFile}
+              />
+            </div>
+
+            {/* Favicon */}
+            <div>
+              <label className="label mb-2 block">Favicon (browser tab icon)</label>
+              <div
+                className="relative flex items-center justify-center h-24 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors"
+                onClick={() => faviconInputRef.current?.click()}
+              >
+                {faviconPreview ? (
+                  <img src={faviconPreview} alt="Favicon preview" className="w-12 h-12 object-contain" />
+                ) : (
+                  <div className="flex flex-col items-center gap-1 text-gray-400">
+                    <Image size={24} />
+                    <span className="text-xs">Click to upload</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => faviconInputRef.current?.click()}
+                  className="btn-secondary text-xs py-1.5"
+                >
+                  <Upload size={12} /> Upload
+                </button>
+                {faviconPreview && (
+                  <button
+                    type="button"
+                    onClick={() => setFaviconPreview('')}
+                    className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+                  >
+                    <X size={12} /> Remove
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">PNG, WebP · max 256 KB · ideally square</p>
+              <input
+                ref={faviconInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                className="hidden"
+                onChange={handleFaviconFile}
+              />
+            </div>
+          </div>
+
+          {/* Save row */}
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              {brandingMsg && (
+                <span className={`flex items-center gap-1.5 text-sm ${brandingMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {brandingMsg.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                  {brandingMsg.text}
+                </span>
+              )}
+            </div>
+            <button onClick={saveBranding} disabled={brandingSaving} className="btn-primary">
+              {brandingSaving
+                ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
+                : <><Save size={14} /> Save Branding</>}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* SMTP card */}
       <div className="card overflow-hidden">

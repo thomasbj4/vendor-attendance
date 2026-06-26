@@ -70,4 +70,51 @@ router.post('/smtp/test', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
+const BRANDING_IMAGE_RE = /^data:image\/(png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
+const FAVICON_MAX_BYTES = 256 * 1024;
+const LOGO_MAX_BYTES    = 1024 * 1024;
+
+router.put('/branding', async (req: AuthenticatedRequest, res: Response) => {
+  const { favicon, logo } = req.body;
+  const pool = getPool();
+
+  try {
+    if (favicon !== undefined) {
+      if (!favicon) {
+        await pool.query("DELETE FROM app_settings WHERE key = 'favicon'");
+      } else {
+        if (!BRANDING_IMAGE_RE.test(favicon)) {
+          res.status(400).json({ error: 'Invalid favicon format.' }); return;
+        }
+        if (Buffer.byteLength(favicon, 'utf8') > FAVICON_MAX_BYTES) {
+          res.status(400).json({ error: 'Favicon too large (max 256 KB).' }); return;
+        }
+        await pool.query(
+          "INSERT INTO app_settings (key, value) VALUES ('favicon', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+          [favicon],
+        );
+      }
+    }
+
+    if (logo !== undefined) {
+      if (!logo) {
+        await pool.query("DELETE FROM app_settings WHERE key = 'logo'");
+      } else {
+        if (!BRANDING_IMAGE_RE.test(logo)) {
+          res.status(400).json({ error: 'Invalid logo format.' }); return;
+        }
+        if (Buffer.byteLength(logo, 'utf8') > LOGO_MAX_BYTES) {
+          res.status(400).json({ error: 'Logo too large (max 1 MB).' }); return;
+        }
+        await pool.query(
+          "INSERT INTO app_settings (key, value) VALUES ('logo', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+          [logo],
+        );
+      }
+    }
+
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Failed.' }); }
+});
+
 export default router;

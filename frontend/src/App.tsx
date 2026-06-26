@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { BrandingProvider } from './context/BrandingContext';
 import api from './api/client';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -39,6 +40,7 @@ export default function App() {
   }
 
   return (
+    <BrandingProvider>
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
@@ -51,5 +53,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </BrandingProvider>
   );
 }

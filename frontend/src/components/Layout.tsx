@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
 import {
   LayoutDashboard, Clock, Users, BarChart3,
   LogOut, Building2, ChevronRight, Settings, ShieldCheck, Menu, X,
@@ -22,6 +23,7 @@ const roleColors: Record<string, string> = {
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { branding } = useBranding();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -51,18 +53,24 @@ export default function Layout() {
       `}>
         {/* Brand */}
         <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-gray-900 font-semibold text-sm leading-tight">Vendor</p>
-              <p className="text-gray-400 text-xs">Attendance System</p>
-            </div>
+          <div className="flex items-center gap-3 min-w-0">
+            {branding.logo ? (
+              <img src={branding.logo} alt="Logo" className="h-9 max-w-[148px] object-contain" />
+            ) : (
+              <>
+                <div className="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center shrink-0">
+                  <Building2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-gray-900 font-semibold text-sm leading-tight">Vendor</p>
+                  <p className="text-gray-400 text-xs">Attendance System</p>
+                </div>
+              </>
+            )}
           </div>
           <button
             onClick={closeSidebar}
-            className="md:hidden text-gray-400 hover:text-gray-600 p-1"
+            className="md:hidden text-gray-400 hover:text-gray-600 p-1 shrink-0"
           >
             <X size={20} />
           </button>
@@ -132,11 +140,17 @@ export default function Layout() {
           >
             <Menu size={22} />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-blue-500 rounded-md flex items-center justify-center">
-              <Building2 className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-gray-900 font-semibold text-sm">Vendor Attendance</span>
+          <div className="flex items-center gap-2 min-w-0">
+            {branding.logo ? (
+              <img src={branding.logo} alt="Logo" className="h-7 max-w-[120px] object-contain" />
+            ) : (
+              <>
+                <div className="w-7 h-7 bg-blue-500 rounded-md flex items-center justify-center shrink-0">
+                  <Building2 className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-gray-900 font-semibold text-sm">Vendor Attendance</span>
+              </>
+            )}
           </div>
         </div>
 

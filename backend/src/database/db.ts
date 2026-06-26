@@ -112,6 +112,11 @@ export async function initSchema(): Promise<void> {
       details     TEXT,
       created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 
   await p.query(`

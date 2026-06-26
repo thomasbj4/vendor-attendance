@@ -40,6 +40,17 @@ app.use('/api/export', exportRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/audit', auditRoutes);
 
+app.get('/api/branding', async (_req, res) => {
+  try {
+    const { rows } = await getPool().query(
+      "SELECT key, value FROM app_settings WHERE key IN ('favicon', 'logo')",
+    );
+    const result: Record<string, string> = {};
+    rows.forEach((r: { key: string; value: string }) => { result[r.key] = r.value; });
+    res.json(result);
+  } catch { res.json({}); }
+});
+
 app.get('/api/health', async (_req, res) => {
   try {
     await getPool().query('SELECT 1');
