@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
+import SessionTimeoutWarning from './SessionTimeoutWarning';
 import {
   LayoutDashboard, Clock, Users, BarChart3,
   LogOut, Building2, ChevronRight, Settings, ShieldCheck, Menu, X, Palette, Mail, UserCircle2,
@@ -221,6 +222,7 @@ export default function Layout() {
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
+        <SessionTimeoutWarning />
       </div>
     </div>
   );

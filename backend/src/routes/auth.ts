@@ -52,6 +52,14 @@ const otpLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const passwordChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many password change attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 function signToken(user: User): string {
   return jwt.sign(
     { userId: user.id, role: user.role, email: user.email },
@@ -82,8 +90,9 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
 
     await logAudit(pool, user.id, user.email, 'auth.login', 'user', user.id, { role: user.role });
     const { password: _, ...safeUser } = user;
+    const expiresAt = new Date(Date.now() + JWT_EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
     res.cookie('token', signToken(user), COOKIE_OPTIONS);
-    res.json({ user: safeUser });
+    res.json({ user: safeUser, expiresAt });
   } catch (err) {
     console.error('login error', err);
     res.status(500).json({ error: 'Login failed.' });
@@ -120,7 +129,7 @@ router.post('/send-otp', otpLimiter, async (req: Request, res: Response) => {
       `Hi ${user.name},\n\nYour one-time login code is: ${token}\n\nThis code expires in ${OTP_EXPIRY_MINUTES} minutes.\n\nIf you did not request this, please ignore this email.`,
       `<p>Hi <strong>${user.name}</strong>,</p><p>Your one-time login code is:</p><h2 style="letter-spacing:8px;font-size:36px;color:#4f46e5">${token}</h2><p>This code expires in <strong>${OTP_EXPIRY_MINUTES} minutes</strong>.</p><p style="color:#9ca3af;font-size:12px">If you did not request this, please ignore this email.</p>`,
     );
-    res.json({ message: 'OTP sent to your email.' });
+    res.json({ message: 'If this email is registered, an OTP has been sent.' });
   } catch (err) {
     console.error('send-otp error', err);
     res.status(500).json({ error: 'Failed to send OTP. Please try again.' });
@@ -148,15 +157,16 @@ router.post('/verify-otp', otpLimiter, async (req: Request, res: Response) => {
     await pool.query('UPDATE otp_tokens SET used = 1 WHERE id = $1', [row.id]);
 
     const { password: _, ...safeUser } = user;
+    const expiresAt = new Date(Date.now() + JWT_EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
     res.cookie('token', signToken(user), COOKIE_OPTIONS);
-    res.json({ user: safeUser });
+    res.json({ user: safeUser, expiresAt });
   } catch (err) {
     console.error('verify-otp error', err);
     res.status(500).json({ error: 'Verification failed.' });
   }
 });
 
-router.put('/password', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/password', passwordChangeLimiter, authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const { new_password, confirm_password } = req.body;
 
   if (!new_password || typeof new_password !== 'string' || new_password.length < 8) {
@@ -191,11 +201,22 @@ router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Resp
       [req.user!.userId],
     );
     if (!user) { res.status(404).json({ error: 'User not found.' }); return; }
-    res.json({ user });
+    const rawToken = (req as Request & { cookies: Record<string, string> }).cookies?.token;
+    const decoded = jwt.decode(rawToken) as { exp?: number } | null;
+    const expiresAt = decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null;
+    res.json({ user, expiresAt });
   } catch (err) {
     console.error('me error', err);
     res.status(500).json({ error: 'Failed.' });
   }
+});
+
+router.post('/refresh', authenticateToken, (_req: AuthenticatedRequest, res: Response) => {
+  const { userId, role, email } = _req.user!;
+  const token = jwt.sign({ userId, role, email }, JWT_SECRET, { expiresIn: `${JWT_EXPIRY_HOURS}h` });
+  const expiresAt = new Date(Date.now() + JWT_EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
+  res.cookie('token', token, COOKIE_OPTIONS);
+  res.json({ expiresAt });
 });
 
 export default router;
