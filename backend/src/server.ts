@@ -7,9 +7,9 @@ if (!jwtSecret || jwtSecret === 'change-me' || jwtSecret.length < 32) {
   console.error('FATAL: JWT_SECRET must be set to a random string of at least 32 characters.');
   process.exit(1);
 }
-const pgPassword = process.env.POSTGRES_PASSWORD;
-if (!pgPassword || pgPassword === 'change-me') {
-  console.error('FATAL: POSTGRES_PASSWORD must be set to a non-default value.');
+const dbUrl = process.env.DATABASE_URL;
+if (!dbUrl || dbUrl.includes('change-me')) {
+  console.error('FATAL: DATABASE_URL must be set with a valid database password.');
   process.exit(1);
 }
 
