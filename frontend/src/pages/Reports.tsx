@@ -24,7 +24,18 @@ export default function Reports() {
   const [exporting,  setExporting]  = useState(false);
   const [loading,    setLoading]    = useState(false);
   const [tsLoading,  setTsLoading]  = useState(false);
-  const [filters, setFilters] = useState({ user_id: '', status: '', start: '', end: '' });
+  const getWeekRange = () => {
+    const today = new Date();
+    const day = today.getDay(); // 0 Sun … 6 Sat
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((day + 6) % 7));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    return { start: fmt(monday), end: fmt(sunday) };
+  };
+
+  const [filters, setFilters] = useState(() => ({ user_id: '', status: '', ...getWeekRange() }));
 
   // Load non-admin users for filter dropdown
   useEffect(() => {
@@ -157,7 +168,7 @@ export default function Reports() {
           <span className="text-sm font-medium text-gray-600">Filters</span>
           {(filters.user_id || filters.status || filters.start || filters.end) && (
             <button
-              onClick={() => setFilters({ user_id: '', status: '', start: '', end: '' })}
+              onClick={() => setFilters({ user_id: '', status: '', ...getWeekRange() })}
               className="ml-auto text-xs text-indigo-600 hover:text-indigo-800"
             >Clear all</button>
           )}
