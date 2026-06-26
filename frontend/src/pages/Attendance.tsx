@@ -353,7 +353,7 @@ export default function Attendance() {
     })();
 
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {/* ── Page header ── */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">My Attendance</h1>
@@ -361,7 +361,7 @@ export default function Attendance() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit mb-7">
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit mb-7 overflow-x-auto max-w-full">
           {([
             { key: 'attendance', label: 'Calendar' },
             { key: 'log',        label: 'Attendance Log' },
@@ -743,8 +743,8 @@ export default function Attendance() {
   const selectedReport = selectedUser ? submittedReports.find(t => t.user_id === selectedUser.id) : null;
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-5">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Attendance Reports</h1>
           <p className="text-sm text-gray-500 mt-0.5">View submitted attendance by week</p>
@@ -763,9 +763,9 @@ export default function Attendance() {
         </div>
       </div>
 
-      <div className="flex gap-5">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-5">
         {/* Users sidebar */}
-        <div className="w-56 shrink-0">
+        <div className="w-full md:w-56 md:shrink-0">
           <div className="card overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
               <Users size={14} className="text-indigo-500" />

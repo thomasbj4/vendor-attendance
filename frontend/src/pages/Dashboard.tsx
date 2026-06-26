@@ -101,6 +101,8 @@ export default function Dashboard() {
   const submitted    = userStatuses.filter(s => s.submittedDays.length > 0);
   const notSubmitted = userStatuses.filter(s => s.submittedDays.length === 0 && s.weekendHours === 0);
   const partial      = userStatuses.filter(s => s.submittedDays.length > 0 && s.missedDays.length > 0);
+  const totalRegHours = userStatuses.reduce((s, u) => s + u.weekdayRecords.reduce((ss, r) => ss + (r.regular_hours || 0), 0), 0);
+  const totalOTHours  = userStatuses.reduce((s, u) => s + u.weekdayRecords.reduce((ss, r) => ss + (r.extra_hours || 0), 0) + u.weekendHours, 0);
 
   // User-view derived stats
   const myWeekdayRecords = myRecords.filter(r => !weekendDateStrs.includes(r.date));
@@ -146,11 +148,11 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{greeting}, {user?.name?.split(' ')[0]}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{greeting}, {user?.name?.split(' ')[0]}</h1>
           <p className="text-gray-400 text-sm mt-0.5 flex items-center gap-1">
             <CalendarDays size={13} />
             {format(weekStart, 'MMM d')} – {format(weekEnd, 'MMM d, yyyy')}
@@ -175,9 +177,18 @@ export default function Dashboard() {
       ) : isManager ? (
         <>
           {/* Admin stat cards */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             <div className="card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                <CheckCircle2 size={18} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">{userStatuses.length}</p>
+                <p className="text-xs text-gray-500">Employees</p>
+              </div>
+            </div>
+            <div className="card p-4 flex items-center gap-3">
+              <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
                 <CheckCircle2 size={18} className="text-emerald-600" />
               </div>
               <div>
@@ -186,7 +197,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center">
+              <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
                 <XCircle size={18} className="text-red-500" />
               </div>
               <div>
@@ -195,19 +206,28 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center">
-                <Clock size={18} className="text-amber-600" />
+              <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <Clock size={18} className="text-indigo-600" />
               </div>
               <div>
-                <p className="text-xl font-bold text-gray-900">{partial.length}</p>
-                <p className="text-xs text-gray-500">Partial</p>
+                <p className="text-xl font-bold text-gray-900">{totalRegHours.toFixed(0)}h</p>
+                <p className="text-xs text-gray-500">Regular hrs</p>
+              </div>
+            </div>
+            <div className="card p-4 flex items-center gap-3">
+              <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                <Zap size={18} className="text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-amber-600">{totalOTHours.toFixed(0)}h</p>
+                <p className="text-xs text-gray-500">Overtime</p>
               </div>
             </div>
           </div>
 
           {/* Admin user table */}
           <div className="card overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-4 sm:px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
               <h2 className="font-semibold text-gray-800 text-sm">Attendance — {weekLabel}</h2>
               <div className="flex items-center gap-3 text-xs text-gray-400 pr-1">
                 {workDays.map(d => (
@@ -222,7 +242,8 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="divide-y divide-gray-50">
+            <div className="overflow-x-auto">
+            <div className="divide-y divide-gray-50 min-w-[700px]">
               {userStatuses.length === 0 && (
                 <div className="px-5 py-8 text-center text-gray-400 text-sm">No users found</div>
               )}
@@ -337,6 +358,7 @@ export default function Dashboard() {
                 );
               })}
             </div>
+            </div>
           </div>
         </>
       ) : (
@@ -349,7 +371,7 @@ export default function Dashboard() {
             const displayExtra = signedExtra !== null ? signedExtra : myWeekdayOT;
             const isSigned     = !!myTimesheet;
             return (
-              <div className="grid grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
                 <div className="card p-4 flex items-center gap-3">
                   <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
                     <CheckCircle2 size={18} className="text-emerald-600" />

@@ -97,8 +97,8 @@ export default function TimesheetPage() {
   const canEdit = (ts: Timesheet) => ts.status === 'draft' && (user?.role !== 'user' || ts.user_id === user.id);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Timesheets</h1>
         <button onClick={() => setShowCreate(true)} className="btn-primary">
           <Plus size={16} /> New Timesheet
@@ -109,7 +109,7 @@ export default function TimesheetPage() {
       {showCreate && (
         <div className="card p-5">
           <h2 className="font-semibold text-gray-900 mb-4">Create New Timesheet</h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div>
               <label className="label">Period Start</label>
               <input type="date" className="input" value={form.period_start}
@@ -225,7 +225,7 @@ export default function TimesheetPage() {
                 )}
 
                 {/* Summary */}
-                <div className="px-5 py-3 grid grid-cols-4 gap-4 border-b border-gray-100 text-sm">
+                <div className="px-5 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 border-b border-gray-100 text-sm">
                   <div className="text-center"><p className="text-xs text-gray-400 mb-0.5">Regular Hours</p><p className="font-bold text-gray-900">{detail.timesheet.total_regular_hours.toFixed(1)}h</p></div>
                   <div className="text-center"><p className="text-xs text-gray-400 mb-0.5">Extra Hours</p><p className="font-bold text-amber-600">{detail.timesheet.total_extra_hours.toFixed(1)}h</p></div>
                   <div className="text-center"><p className="text-xs text-gray-400 mb-0.5">Total Hours</p><p className="font-bold text-indigo-600">{(detail.timesheet.total_regular_hours + detail.timesheet.total_extra_hours).toFixed(1)}h</p></div>

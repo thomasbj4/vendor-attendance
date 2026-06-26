@@ -71,8 +71,8 @@ export default function AuditLog() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <ShieldCheck size={22} className="text-indigo-600" /> Audit Log
@@ -85,7 +85,7 @@ export default function AuditLog() {
       </div>
 
       {/* Filters */}
-      <div className="card p-4 flex items-end gap-4">
+      <div className="card p-4 flex flex-wrap items-end gap-3 sm:gap-4">
         <div className="flex-1">
           <label className="label">Action</label>
           <select className="input" value={filters.action}

@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Clock, Users, BarChart3,
-  LogOut, Building2, ChevronRight, Settings, ShieldCheck,
+  LogOut, Building2, ChevronRight, Settings, ShieldCheck, Menu, X,
 } from 'lucide-react';
 
 const navItems = [
@@ -22,18 +23,34 @@ const roleColors: Record<string, string> = {
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
+      <aside className={`
+        fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 flex flex-col
+        transition-transform duration-200 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:relative md:translate-x-0 md:shrink-0
+      `}>
         {/* Brand */}
-        <div className="px-6 py-5 border-b border-gray-200">
+        <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
               <Building2 className="w-5 h-5 text-white" />
@@ -43,6 +60,12 @@ export default function Layout() {
               <p className="text-gray-400 text-xs">Attendance System</p>
             </div>
           </div>
+          <button
+            onClick={closeSidebar}
+            className="md:hidden text-gray-400 hover:text-gray-600 p-1"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* Nav */}
@@ -54,6 +77,7 @@ export default function Layout() {
                 key={to}
                 to={to}
                 end={exact}
+                onClick={closeSidebar}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group ${
                     isActive
@@ -64,7 +88,7 @@ export default function Layout() {
               >
                 {({ isActive }) => (
                   <>
-                    <Icon className="w-4.5 h-4.5 shrink-0" size={18} />
+                    <Icon className="shrink-0" size={18} />
                     <span className="flex-1">{label}</span>
                     {isActive && <ChevronRight size={14} className="opacity-40" />}
                   </>
@@ -99,9 +123,27 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
-        <Outlet />
-      </main>
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile top bar */}
+        <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 shrink-0">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-gray-500 hover:text-gray-700 p-1"
+          >
+            <Menu size={22} />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-blue-500 rounded-md flex items-center justify-center">
+              <Building2 className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-gray-900 font-semibold text-sm">Vendor Attendance</span>
+          </div>
+        </div>
+
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

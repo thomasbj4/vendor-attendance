@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
 import { AttendanceRecord, User, Timesheet } from '../types';
 import { format, parseISO } from 'date-fns';
-import { Download, FileSpreadsheet, Filter, Zap, FileCheck, AlertCircle, RefreshCw } from 'lucide-react';
+import { FileSpreadsheet, Filter, Zap, FileCheck, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const PAGE_SIZE = 25;
 
 const STATUS_BADGE: Record<string, string> = {
   present: 'badge-green',
@@ -24,6 +26,7 @@ export default function Reports() {
   const [exporting,  setExporting]  = useState(false);
   const [loading,    setLoading]    = useState(false);
   const [tsLoading,  setTsLoading]  = useState(false);
+  const [page,       setPage]       = useState(1);
   const getWeekRange = () => {
     const today = new Date();
     const day = today.getDay(); // 0 Sun … 6 Sat
@@ -78,6 +81,7 @@ export default function Reports() {
   }, [filters]);
 
   useEffect(() => { if (users.length >= 0) { load(); loadTimesheets(); } }, [load, loadTimesheets]);
+  useEffect(() => { setPage(1); }, [filters]);
 
   const doExport = async () => {
     if (timesheets.filter(t => t.status === 'submitted').length === 0 && timesheets.length === 0) {
@@ -127,10 +131,12 @@ export default function Reports() {
   const uniqueUsers     = new Set(records.map(r => r.user_id)).size;
 
   const canExport = timesheets.some(t => t.status === 'submitted' || t.status === 'signed');
+  const totalPages = Math.ceil(records.length / PAGE_SIZE);
+  const paginatedRecords = records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Attendance Report</h1>
           <p className="text-sm text-gray-500 mt-0.5">Export is available only for submitted timesheets</p>
@@ -147,7 +153,7 @@ export default function Reports() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {[
           { label: 'Employees',      value: uniqueUsers },
           { label: 'Total Records',  value: records.length },
@@ -173,7 +179,7 @@ export default function Reports() {
             >Clear all</button>
           )}
         </div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <div>
             <label className="label">Employee</label>
             <select className="input" value={filters.user_id}
@@ -275,8 +281,11 @@ export default function Reports() {
 
       {/* Attendance records */}
       <div className="card overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <span className="text-sm text-gray-500">{records.length} record{records.length !== 1 ? 's' : ''}</span>
+          {totalPages > 1 && (
+            <span className="text-xs text-gray-400">Page {page} of {totalPages}</span>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -292,7 +301,7 @@ export default function Reports() {
                 <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
               ) : records.length === 0 ? (
                 <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No records found</td></tr>
-              ) : records.map(r => {
+              ) : paginatedRecords.map(r => {
                 const tsStatus = tsStatusByUser.get(r.user_id);
                 const dow = parseISO(r.date + 'T00:00:00').getDay();
                 return (
@@ -346,6 +355,40 @@ export default function Reports() {
             </tbody>
           </table>
         </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="btn-secondary py-1.5 px-3 disabled:opacity-40"
+            >
+              <ChevronLeft size={15} /> Prev
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                    p === page
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="btn-secondary py-1.5 px-3 disabled:opacity-40"
+            >
+              Next <ChevronRight size={15} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

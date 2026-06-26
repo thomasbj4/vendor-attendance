@@ -26,6 +26,7 @@ export default function Users() {
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
 
   const load = async () => {
     const { data } = await api.get('/users');
@@ -79,25 +80,27 @@ export default function Users() {
     load();
   };
 
-  const filtered = users.filter(u =>
-    u.name.toLowerCase().includes(filter.toLowerCase()) ||
-    u.email.toLowerCase().includes(filter.toLowerCase()) ||
-    u.role.includes(filter.toLowerCase())
-  );
+  const filtered = users.filter(u => {
+    const matchesSearch = !filter ||
+      u.name.toLowerCase().includes(filter.toLowerCase()) ||
+      u.email.toLowerCase().includes(filter.toLowerCase());
+    const matchesRole = !roleFilter || u.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
 
   const counts = { admin: users.filter(u => u.role === 'admin').length, user: users.filter(u => u.role === 'user').length };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Users</h1>
         <button onClick={openAdd} className="btn-primary">
           <Plus size={16} /> Add User
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {[
           { label: 'Total Users', value: users.length, color: 'bg-indigo-500' },
           { label: 'Admins', value: counts.admin, color: 'bg-purple-500' },
@@ -117,14 +120,29 @@ export default function Users() {
 
       {/* Table */}
       <div className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
           <input
             type="text"
-            placeholder="Search users..."
+            placeholder="Search by name or email..."
             value={filter}
             onChange={e => setFilter(e.target.value)}
             className="input max-w-xs"
           />
+          <select
+            className="input w-36"
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
+          >
+            <option value="">All roles</option>
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
+          </select>
+          {(filter || roleFilter) && (
+            <button
+              onClick={() => { setFilter(''); setRoleFilter(''); }}
+              className="text-xs text-indigo-600 hover:text-indigo-800"
+            >Clear</button>
+          )}
           <span className="text-sm text-gray-400 ml-auto">{filtered.length} users</span>
         </div>
         <div className="overflow-x-auto">
