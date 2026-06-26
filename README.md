@@ -19,15 +19,20 @@ A full-stack vendor attendance and timesheet management system built with React,
 
 ## Features
 
-- Attendance tracking — clock-in/out, daily records, monthly calendar
-- Timesheet flow — `draft → submitted → signed`
-- Signature pad — draw or upload signature for timesheet submission
-- Excel export — generates formatted attendance reports, auto-signs timesheets on export
-- Role-based access — `admin` and `user` roles
-- OTP email login — passwordless login via 6-digit code
-- Audit log — full trail of all admin and user actions
-- SMTP settings — configurable email server via admin UI
-- First-run setup — creates admin account on fresh deploy
+- **Attendance tracking** — clock-in/out, break time, daily records, monthly calendar view
+- **Timesheet flow** — `draft → submitted → signed` with signature pad
+- **Signature pad** — draw or upload signature for timesheet submission
+- **Excel export** — generates formatted attendance reports, auto-signs timesheets on export
+- **Role-based access** — `admin` and `user` roles with route-level enforcement
+- **OTP email login** — passwordless login via 6-digit code (rate limited)
+- **Audit log** — full trail of all admin and user actions with filters
+- **Reports** — date-range reports with filters, 25-record pagination, export to Excel
+- **Dashboard** — weekly summary (regular/OT hours, submitted/not-submitted counts)
+- **Users** — search + role filter, activate/deactivate, department and vendor ID fields
+- **Branding** — upload a custom logo (sidebar) and favicon (browser tab) from admin Settings
+- **Mobile responsive** — hamburger sidebar, responsive grids on all pages
+- **SMTP settings** — configurable email server via admin UI with test-send
+- **First-run setup** — creates admin account on fresh deploy; setup page is permanently blocked after first user
 
 ---
 
@@ -70,7 +75,7 @@ docker compose up -d --build
 ```
 
 This will:
-1. Pull postgres:16-alpine and nginx:stable-alpine base images
+1. Pull `postgres:16-alpine` and `nginx:stable-alpine` base images
 2. Build the backend (TypeScript → Node.js)
 3. Build the frontend (Vite → nginx)
 4. Create the database and run schema migrations automatically
@@ -144,6 +149,12 @@ Copy `.env.example` to `.env` and configure:
 | `LOGIN_RATE_LIMIT_MAX` | `10` | Max login attempts per window |
 | `LOGIN_RATE_LIMIT_WINDOW_MS` | `900000` | Login rate limit window (ms) — 15 minutes |
 
+### HTTPS / Security headers
+
+| Variable | Default | Description |
+|---|---|---|
+| `HSTS_MAX_AGE` | `0` | HSTS `max-age` in seconds — set to `31536000` once HTTPS is live |
+
 ---
 
 ## Common Commands
@@ -209,10 +220,11 @@ Tables are created automatically on first boot via `initSchema()` — no manual 
 | `users` | Employees and admins |
 | `attendance` | Daily attendance records |
 | `timesheets` | Weekly/period timesheets |
-| `signatures` | Signature pad data (stored as base64 in Postgres) |
+| `signatures` | Signature pad data (stored as base64) |
 | `smtp_settings` | Email server configuration |
 | `otp_tokens` | One-time password tokens |
 | `audit_logs` | Full activity trail |
+| `app_settings` | Key/value store — holds branding assets (logo, favicon) |
 
 ### Backup
 
@@ -234,20 +246,31 @@ draft  →  submitted  →  signed
 
 1. Employee fills in attendance records for the week
 2. Employee submits timesheet with a signature → status: `submitted`
-3. Admin exports the report → status becomes `signed` (locked, cannot be edited)
+3. Admin signs off or exports the report → status becomes `signed` (locked, cannot be edited)
+
+---
+
+## Branding
+
+Admins can upload a custom logo and favicon from **Settings → Branding**:
+
+- **Sidebar Logo** — replaces the default building icon in the sidebar and mobile top bar. Supported formats: PNG, SVG, WebP, GIF, JPEG. Max 5 MB.
+- **Favicon** — shown in the browser tab. Supported formats: PNG, WebP, SVG. Max 1 MB. Use a square image for best results.
+
+Both assets are stored in the database and served via `GET /api/branding` (no login required), so the logo and favicon appear on the login page too. Removing an asset and saving reverts to the built-in default icon.
 
 ---
 
 ## HTTPS / Production Deployment
 
-The nginx container serves HTTP on port 80. For production:
+The nginx container serves HTTP on port 8080 internally, mapped to your `APP_PORT` (default 80). For production:
 
 1. Place a reverse proxy (Cloudflare, AWS ALB, nginx-proxy-manager, Traefik) in front
 2. Terminate TLS at the proxy
 3. Set `CORS_ORIGIN=https://yourdomain.com` in `.env`
 4. Set `COOKIE_SECURE=true` in `.env`
 5. Set `HSTS_MAX_AGE=31536000` in `.env`
-6. `docker compose up -d` — no rebuild needed
+6. `docker compose up -d` — no rebuild needed for env-only changes
 
 ---
 
@@ -256,19 +279,28 @@ The nginx container serves HTTP on port 80. For production:
 ```
 ├── backend/
 │   ├── src/
-│   │   ├── routes/          # API route handlers
-│   │   ├── middleware/       # Auth, role checks
-│   │   ├── services/         # Email, audit logging
-│   │   ├── database/         # DB pool, schema init
+│   │   ├── routes/           # API route handlers
+│   │   │   ├── auth.ts       # OTP login, rate limiting
+│   │   │   ├── attendance.ts # Daily records CRUD
+│   │   │   ├── timesheets.ts # Timesheet lifecycle
+│   │   │   ├── signatures.ts # Signature storage
+│   │   │   ├── users.ts      # User management
+│   │   │   ├── export.ts     # Excel export
+│   │   │   ├── audit.ts      # Audit log
+│   │   │   ├── settings.ts   # SMTP + branding
+│   │   │   └── setup.ts      # First-run setup
+│   │   ├── middleware/        # Auth, role checks
+│   │   ├── services/          # Email, audit logging
+│   │   ├── database/          # DB pool, schema init
 │   │   └── utils/
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/            # React pages
-│   │   ├── components/       # Shared components
-│   │   ├── context/          # Auth context
-│   │   └── api/              # Axios client
-│   ├── nginx.conf.template   # nginx config (envsubst at runtime)
+│   │   ├── pages/             # React pages
+│   │   ├── components/        # Layout, SignaturePad, etc.
+│   │   ├── context/           # AuthContext, BrandingContext
+│   │   └── api/               # Axios client
+│   ├── nginx.conf.template    # nginx config (envsubst at runtime)
 │   └── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
