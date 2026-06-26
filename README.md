@@ -19,20 +19,26 @@ A full-stack vendor attendance and timesheet management system built with React,
 
 ## Features
 
-- **Attendance tracking** — clock-in/out, break time, daily records, monthly calendar view
-- **Timesheet flow** — `draft → submitted → signed` with signature pad
+- **Attendance tracking** — daily records with regular and overtime hours, monthly calendar view
+- **Weekend overtime** — Saturday/Sunday tracked separately as optional overtime; shown first in the weekly view
+- **Sat–Fri work period** — the app treats each "week" as Saturday through Friday (not Mon–Sun); all date filters, dashboards, and reports default to this period
+- **Timesheet flow** — `draft → submitted → signed` with signature pad; separate sign-off for weekday (Mon–Fri) and weekend (Sat–Sun) periods
 - **Signature pad** — draw or upload signature for timesheet submission
 - **Excel export** — generates formatted attendance reports, auto-signs timesheets on export
 - **Role-based access** — `admin` and `user` roles with route-level enforcement
-- **OTP email login** — passwordless login via 6-digit code (rate limited)
+- **OTP email login** — passwordless login via 6-digit code; enumeration-safe (same response whether email exists or not)
+- **Session timeout warning** — toast notification appears 2 minutes before JWT expiry with a countdown timer and "Stay logged in" button that silently refreshes the session
+- **Password change** — self-service password change for all users, rate-limited to 5 attempts per 15 minutes
 - **Audit log** — full trail of all admin and user actions with filters
 - **Reports** — date-range reports with filters, 25-record pagination, export to Excel
-- **Dashboard** — weekly summary (regular/OT hours, submitted/not-submitted counts)
+- **Dashboard** — weekly summary (regular/OT hours, present days, submitted/not-submitted counts) with Sat–Fri navigation
 - **Users** — search + role filter, activate/deactivate, department and vendor ID fields
 - **Branding** — upload a custom logo (sidebar) and favicon (browser tab) from admin Settings
 - **Mobile responsive** — hamburger sidebar, responsive grids on all pages
-- **SMTP settings** — configurable email server via admin UI with test-send
+- **SMTP settings** — configurable email server via admin UI with test-send to any address
 - **First-run setup** — creates admin account on fresh deploy; setup page is permanently blocked after first user
+- **Health check** — `GET /api/health` returns DB connectivity status; suitable for load balancer probes
+- **Startup validation** — backend exits immediately with a clear error if required environment variables are missing
 
 ---
 
@@ -149,6 +155,8 @@ Copy `.env.example` to `.env` and configure:
 | `LOGIN_RATE_LIMIT_MAX` | `10` | Max login attempts per window |
 | `LOGIN_RATE_LIMIT_WINDOW_MS` | `900000` | Login rate limit window (ms) — 15 minutes |
 
+> Password change is also rate-limited (hardcoded: 5 attempts per 15 minutes).
+
 ### HTTPS / Security headers
 
 | Variable | Default | Description |
@@ -244,9 +252,18 @@ cat backup.sql | docker compose exec -T db psql -U postgres -d attendance
 draft  →  submitted  →  signed
 ```
 
-1. Employee fills in attendance records for the week
-2. Employee submits timesheet with a signature → status: `submitted`
-3. Admin signs off or exports the report → status becomes `signed` (locked, cannot be edited)
+Each period has **two separate timesheets**:
+
+| Period | Days | Notes |
+|---|---|---|
+| Weekday | Mon – Fri | Required; all 5 days must be logged before signing |
+| Weekend | Sat – Sun | Optional; any logged day unlocks the sign button |
+
+1. Employee logs attendance records for each day
+2. Employee signs and submits each timesheet with a signature → status: `submitted`
+3. Admin exports the report → timesheets become `signed` (locked, read-only)
+
+The sign-off tab shows a badge with the count of unsigned periods across the last 4 weeks.
 
 ---
 
@@ -258,6 +275,22 @@ Admins can upload a custom logo and favicon from **Settings → Branding**:
 - **Favicon** — shown in the browser tab. Supported formats: PNG, WebP, SVG. Max 1 MB. Use a square image for best results.
 
 Both assets are stored in the database and served via `GET /api/branding` (no login required), so the logo and favicon appear on the login page too. Removing an asset and saving reverts to the built-in default icon.
+
+---
+
+## Security
+
+| Area | Detail |
+|---|---|
+| Auth tokens | JWT stored in `httpOnly`, `sameSite=strict` cookies — not accessible to JavaScript |
+| Session expiry | Configurable via `JWT_EXPIRY_HOURS` (default 8 h); frontend warns 2 min before expiry |
+| Session refresh | `POST /auth/refresh` issues a new token and cookie without re-login |
+| Login brute-force | Rate-limited (default: 10 attempts / 15 min, configurable) |
+| OTP brute-force | Rate-limited (default: 3 requests / 60 s, configurable) |
+| OTP enumeration | `send-otp` returns the same message whether the email exists or not |
+| Password change | Rate-limited to 5 attempts per 15 minutes |
+| Security headers | CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy set by nginx |
+| HSTS | Disabled by default; set `HSTS_MAX_AGE=31536000` once HTTPS is live |
 
 ---
 
@@ -296,9 +329,9 @@ The nginx container serves HTTP on port 8080 internally, mapped to your `APP_POR
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/             # React pages
-│   │   ├── components/        # Layout, SignaturePad, etc.
-│   │   ├── context/           # AuthContext, BrandingContext
+│   │   ├── pages/             # React pages (Dashboard, Attendance, Reports, …)
+│   │   ├── components/        # Layout, SignaturePad, SessionTimeoutWarning, …
+│   │   ├── context/           # AuthContext (session + expiresAt), BrandingContext
 │   │   └── api/               # Axios client
 │   ├── nginx.conf.template    # nginx config (envsubst at runtime)
 │   └── Dockerfile
