@@ -127,7 +127,7 @@ router.post('/send-otp', otpLimiter, async (req: Request, res: Response) => {
   }
 });
 
-router.post('/verify-otp', async (req: Request, res: Response) => {
+router.post('/verify-otp', otpLimiter, async (req: Request, res: Response) => {
   const { email, otp } = req.body;
   if (!email || !otp) { res.status(400).json({ error: 'Email and OTP are required.' }); return; }
 
@@ -137,7 +137,7 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
       'SELECT * FROM users WHERE email = $1 AND is_active = 1',
       [email],
     );
-    if (!user) { res.status(401).json({ error: 'Invalid email or OTP.' }); return; }
+    if (!user) { res.status(401).json({ error: 'Invalid or expired OTP.' }); return; }
 
     const { rows: [row] } = await pool.query(
       'SELECT id FROM otp_tokens WHERE user_id = $1 AND token = $2 AND used = 0 AND expires_at > NOW() ORDER BY id DESC LIMIT 1',

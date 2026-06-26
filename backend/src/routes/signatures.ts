@@ -34,9 +34,18 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Failed.' }); }
 });
 
+const SIGNATURE_DATA_RE = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/;
+const SIGNATURE_MAX_BYTES = 512 * 1024; // 512 KB
+
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   const { data, name, set_default } = req.body;
   if (!data) { res.status(400).json({ error: 'Signature data is required.' }); return; }
+  if (!SIGNATURE_DATA_RE.test(data)) {
+    res.status(400).json({ error: 'Invalid signature format. Must be a base64-encoded image.' }); return;
+  }
+  if (Buffer.byteLength(data, 'utf8') > SIGNATURE_MAX_BYTES) {
+    res.status(400).json({ error: 'Signature data too large (max 512 KB).' }); return;
+  }
 
   const pool = getPool();
   try {

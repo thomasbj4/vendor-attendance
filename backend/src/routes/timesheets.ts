@@ -85,6 +85,9 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   if (!period_start || !period_end) {
     res.status(400).json({ error: 'period_start and period_end are required.' }); return;
   }
+  if (new Date(period_start) > new Date(period_end)) {
+    res.status(400).json({ error: 'period_start must be before period_end.' }); return;
+  }
 
   let targetUserId = req.user!.userId;
   if (req.user!.role !== 'user' && user_id !== undefined) {
@@ -221,6 +224,12 @@ router.post('/:id/recalculate', async (req: AuthenticatedRequest, res: Response)
   try {
     const { rows: [ts] } = await pool.query<Timesheet>('SELECT * FROM timesheets WHERE id = $1', [timesheetId]);
     if (!ts) { res.status(404).json({ error: 'Not found.' }); return; }
+    if (req.user!.role === 'user' && ts.user_id !== req.user!.userId) {
+      res.status(403).json({ error: 'Access denied.' }); return;
+    }
+    if (ts.status === 'signed') {
+      res.status(400).json({ error: 'Cannot recalculate a signed timesheet.' }); return;
+    }
 
     const { rows: records } = await pool.query<AttendanceRecord>(
       'SELECT * FROM attendance WHERE user_id = $1 AND date >= $2 AND date <= $3',

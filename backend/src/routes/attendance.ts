@@ -69,9 +69,14 @@ router.get('/today', async (req: AuthenticatedRequest, res: Response) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Failed.' }); }
 });
 
+const ALLOWED_STATUSES = new Set(['present', 'absent', 'half-day', 'leave']);
+
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   const { date, clock_in, clock_out, break_minutes, extra_hours, extra_start, extra_end, status, notes, user_id } = req.body;
   if (!date) { res.status(400).json({ error: 'Date is required.' }); return; }
+  if (status !== undefined && !ALLOWED_STATUSES.has(status)) {
+    res.status(400).json({ error: 'Invalid status. Must be one of: present, absent, half-day, leave.' }); return;
+  }
 
   let targetUserId = req.user!.userId;
   if (req.user!.role !== 'user' && user_id !== undefined) {
@@ -208,6 +213,9 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const { clock_in, clock_out, break_minutes, extra_hours, extra_start, extra_end, status, notes } = req.body;
+    if (status !== undefined && !ALLOWED_STATUSES.has(status)) {
+      res.status(400).json({ error: 'Invalid status. Must be one of: present, absent, half-day, leave.' }); return;
+    }
     await pool.query(`
       UPDATE attendance SET
         clock_in      = $1, clock_out     = $2,

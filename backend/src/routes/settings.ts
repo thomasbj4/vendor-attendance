@@ -12,11 +12,12 @@ router.use(requireRole('admin'));
 router.get('/smtp', async (_req: AuthenticatedRequest, res: Response) => {
   try {
     const settings = await getSmtpSettings();
+    const base = settings || {
+      host: '', port: 587, connection_type: 'starttls',
+      auth_user: '', auth_pass: '', from_name: process.env.APP_NAME || 'Vendor Attendance', from_email: '',
+    };
     res.json({
-      settings: settings || {
-        host: '', port: 587, connection_type: 'starttls',
-        auth_user: '', auth_pass: '', from_name: process.env.APP_NAME || 'Vendor Attendance', from_email: '',
-      },
+      settings: { ...base, auth_pass: base.auth_pass ? '********' : '' },
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Failed.' }); }
 });
@@ -54,7 +55,7 @@ router.put('/smtp', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 router.post('/smtp/test', async (req: AuthenticatedRequest, res: Response) => {
-  const recipient = req.body.to || req.user!.email;
+  const recipient = req.user!.email;
   try {
     await sendEmail(
       recipient,

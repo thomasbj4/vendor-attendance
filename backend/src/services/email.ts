@@ -30,7 +30,7 @@ export async function sendEmail(to: string, subject: string, text: string, html?
     secure: isSmtps,
     ...(!isRelay && s.auth_user ? { auth: { user: s.auth_user, pass: s.auth_pass } } : {}),
     ...(s.connection_type === 'starttls' ? { requireTLS: true } : {}),
-    tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
+    tls: { rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false' },
   } as nodemailer.TransportOptions;
 
   const transporter = nodemailer.createTransport(transportConfig);
