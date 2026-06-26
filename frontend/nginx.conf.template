@@ -8,13 +8,15 @@ server {
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
     gzip_min_length 1024;
 
-    # Security headers
-    add_header X-Frame-Options           "SAMEORIGIN"                                              always;
-    add_header X-Content-Type-Options    "nosniff"                                                 always;
-    add_header X-XSS-Protection          "1; mode=block"                                           always;
-    add_header Referrer-Policy           "strict-origin-when-cross-origin"                         always;
-    add_header Strict-Transport-Security "max-age=${HSTS_MAX_AGE}; includeSubDomains"              always;
-    add_header Permissions-Policy        "camera=(), microphone=(), geolocation=()"                always;
+    # --- Security headers (applied at server level; repeated in any location that
+    #     defines its own add_header, because nginx does NOT inherit these when a
+    #     child block has its own add_header directives) ---
+    add_header X-Frame-Options           "SAMEORIGIN"                      always;
+    add_header X-Content-Type-Options    "nosniff"                         always;
+    add_header X-XSS-Protection          "1; mode=block"                   always;
+    add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy        "camera=(), microphone=(), geolocation=()" always;
+    add_header Strict-Transport-Security "max-age=${HSTS_MAX_AGE}; includeSubDomains" always;
     add_header Content-Security-Policy   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" always;
 
     # Proxy API calls to backend service
@@ -29,16 +31,24 @@ server {
         client_max_body_size ${CLIENT_MAX_BODY_SIZE};
     }
 
-    # Hashed static assets — cache for 1 year
+    # Hashed static assets — 1 year immutable cache
+    # Uses expires only (no add_header) so server-level security headers are inherited.
     location ~* \.(js|css|woff2|woff|ttf|eot|ico|png|jpg|jpeg|gif|svg|webp)$ {
         expires 1y;
-        add_header Cache-Control "public, max-age=31536000, immutable";
         access_log off;
     }
 
-    # SPA entry point — never cache
+    # SPA entry point — never cache; repeat security headers because this
+    # location must define its own add_header for Cache-Control.
     location = /index.html {
-        add_header Cache-Control "no-store, no-cache, must-revalidate";
+        add_header Cache-Control            "no-store, no-cache, must-revalidate"   always;
+        add_header X-Frame-Options          "SAMEORIGIN"                             always;
+        add_header X-Content-Type-Options   "nosniff"                                always;
+        add_header X-XSS-Protection         "1; mode=block"                          always;
+        add_header Referrer-Policy          "strict-origin-when-cross-origin"        always;
+        add_header Permissions-Policy       "camera=(), microphone=(), geolocation=()" always;
+        add_header Strict-Transport-Security "max-age=${HSTS_MAX_AGE}; includeSubDomains" always;
+        add_header Content-Security-Policy  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" always;
     }
 
     # SPA fallback — serve index.html for all unmatched routes
