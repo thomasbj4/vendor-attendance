@@ -20,6 +20,10 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(400).json({ error: 'Name, email and password are required.' });
     return;
   }
+  if (typeof password !== 'string' || password.length < 8) {
+    res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    return;
+  }
 
   const pool = getPool();
   try {
